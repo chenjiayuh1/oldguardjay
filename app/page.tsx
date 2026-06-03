@@ -29,7 +29,7 @@ export default async function Home() {
       </div>
 
       <footer className="border-t border-zinc-200 mt-24 py-16 text-center text-zinc-500">
-        © 陳家煜 • Static Blog
+        © 陳家煜 • jay@chenjiayuh.com
       </footer>
     </div>
   );
