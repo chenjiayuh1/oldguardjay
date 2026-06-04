@@ -19,7 +19,7 @@ export default async function Home() {
 
           <div className="mt-6 flex gap-6 text-base">
             <a href="https://jaychen.substack.com" target="_blank" className="text-blue-600 hover:underline">訂閱 @ Substack</a>
-            <a href="https://twitter.com/jaycheninfo" target="_blank" className="text-blue-600 hover:underline">推特 / X</a>
+            <a href="https://twitter.com/oldguardjay" target="_blank" className="text-blue-600 hover:underline">推特 / X</a>
           </div>
         </div>
       </header>
