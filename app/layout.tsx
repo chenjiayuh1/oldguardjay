@@ -1,15 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Analytics from '@/src/components/Analytics';
 
 export const metadata: Metadata = {
   title: '陳家煜的美國時間',
   description: '美國政治、經濟、商業、科技及文化觀察 | Old Guard Capitalist',
   icons: {
     icon: '/favicon.ico',
-  },
-  openGraph: {
-    title: '陳家煜的美國時間',
-    description: '美國政治、經濟、商業、科技及文化觀察',
   },
 };
 
@@ -20,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
