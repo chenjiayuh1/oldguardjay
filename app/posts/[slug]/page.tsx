@@ -35,7 +35,16 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               p: ({children}) => <p className="mb-8">{children}</p>,
               h1: ({children}) => <h1 className="text-3xl font-semibold mt-12 mb-6">{children}</h1>,
               h2: ({children}) => <h2 className="text-2xl font-semibold mt-10 mb-5">{children}</h2>,
-              h3: ({children}) => <h3 className="text-xl font-semibold mt-9 mb-4">{children}</h3>,
+              a: ({children, href}) => (
+                <a 
+                  href={href} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                >
+                  {children}
+                </a>
+              ),
             }}
           >
             {post.content}
