@@ -15,8 +15,8 @@ export const DEFAULT_SETTINGS = {
 
 export const FALLBACK_GRAPHQL = {
   queryIds: {
-    UserByScreenName: 'IGgvgiOx4QZndDHuD3x9TQ',
-    UserTweets: '36rb3Xj3iJ64Q-9wKDjCcQ',
+    UserByScreenName: '681MIj51w00Aj6dY0GXnHw',
+    UserTweets: 'RyDU3I9VJtPF-Pnl6vrRlw',
   },
   features: {
     UserByScreenName: {

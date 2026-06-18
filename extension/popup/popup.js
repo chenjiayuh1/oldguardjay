@@ -96,11 +96,8 @@ document.getElementById('sync-btn').addEventListener('click', async () => {
 
     const errors = (response.result.accountResults ?? []).filter((account) => account.error);
     if (response.result.tweets.length === 0 && errors.length > 0) {
-      const sample = errors
-        .slice(0, 2)
-        .map((account) => `@${account.username}: ${account.error}`)
-        .join(' | ');
-      throw new Error(`${errors.length} account fetch errors. ${sample}`);
+      const sample = errors[0]?.error ?? 'Unknown API error';
+      throw new Error(`${errors.length}/${response.result.watchedAccountCount} accounts failed. Example: @${errors[0]?.username}: ${sample}`);
     }
 
     const errorNote = errors.length ? ` (${errors.length} account errors)` : '';

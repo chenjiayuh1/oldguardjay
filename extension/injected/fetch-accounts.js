@@ -9,8 +9,8 @@
 
   const DEFAULT_GRAPHQL = {
     queryIds: {
-      UserByScreenName: 'IGgvgiOx4QZndDHuD3x9TQ',
-      UserTweets: '36rb3Xj3iJ64Q-9wKDjCcQ',
+      UserByScreenName: '681MIj51w00Aj6dY0GXnHw',
+      UserTweets: 'RyDU3I9VJtPF-Pnl6vrRlw',
     },
     features: {
       UserByScreenName: {},
@@ -73,7 +73,16 @@
     return `https://x.com/i/api/graphql/${queryId}/${operationName}?${params.toString()}`;
   }
 
-  function getAuthHeaders() {
+  function createTransactionId() {
+    return [...crypto.getRandomValues(new Uint8Array(95))]
+      .map((value) => {
+        const index = (value / 255) * 61 | 0;
+        return String.fromCharCode(index + (index > 9 ? (index > 35 ? 61 : 55) : 48));
+      })
+      .join('');
+  }
+
+  function getAuthHeaders(operationName, context = {}) {
     const csrfToken = getCookie('ct0');
     const authToken = getCookie('auth_token');
 
@@ -81,21 +90,28 @@
       throw new Error('Not logged in to X. Open x.com and sign in first.');
     }
 
+    const referer =
+      operationName === 'UserTweets' && context.username
+        ? `https://x.com/${context.username}`
+        : 'https://x.com/home';
+
     return {
       authorization: `Bearer ${BEARER_TOKEN}`,
       'x-csrf-token': csrfToken,
       'x-twitter-auth-type': 'OAuth2Session',
       'x-twitter-active-user': 'yes',
       'x-twitter-client-language': 'en',
+      'x-client-transaction-id': createTransactionId(),
       'content-type': 'application/json',
+      referer,
     };
   }
 
-  async function graphqlGet(operationName, variables) {
+  async function graphqlGet(operationName, variables, context = {}) {
     const response = await fetch(buildGraphqlUrl(operationName, variables), {
       method: 'GET',
       credentials: 'include',
-      headers: getAuthHeaders(),
+      headers: getAuthHeaders(operationName, context),
     });
 
     if (!response.ok) {
@@ -307,7 +323,7 @@
         variables.cursor = cursor;
       }
 
-      const payload = await graphqlGet('UserTweets', variables);
+      const payload = await graphqlGet('UserTweets', variables, { username: user.username });
       const { tweets, bottomCursor } = parseUserTweetsResponse(payload, user.username);
 
       if (tweets.length === 0 && !bottomCursor) {
