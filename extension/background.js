@@ -2,7 +2,7 @@ import { loadDefaultAccounts, normalizeAccounts } from './lib/accounts.js';
 import { DEFAULT_SETTINGS } from './lib/constants.js';
 import { formatDateInTimezone } from './lib/date-utils.js';
 import { toMarkdown } from './lib/export.js';
-import { getQueryIds } from './lib/query-id.js';
+import { loadGraphqlConfig } from './lib/graphql-config.js';
 
 const ALARM_NAME = 'daily-watchlist-scan';
 
@@ -169,14 +169,14 @@ async function fetchWatchlistForDate(date, settings, accounts) {
   await ensureContentScriptReady(tab.id);
   await setScanProgress(`Fetching posts for ${date}...`);
 
-  const queryIds = await getQueryIds(['UserByScreenName', 'UserTweets']);
+  const graphql = await loadGraphqlConfig();
 
   const response = await sendTabMessage(tab.id, {
     type: 'FETCH_ACCOUNTS_FOR_DAY',
     options: {
       date,
       accounts,
-      queryIds,
+      graphql,
       timeZone: settings.timezone,
       maxPagesPerAccount: settings.maxPagesPerAccount,
       includeRetweets: settings.includeRetweets,

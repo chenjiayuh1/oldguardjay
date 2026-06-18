@@ -7,36 +7,22 @@
   const BEARER_TOKEN =
     'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA';
 
-  const FALLBACK_QUERY_IDS = {
-    UserByScreenName: '1VOOyvKkiI3FMmkeDNxM9A',
-    UserTweets: 'q6xj5bs0hapm9309hexA_g',
+  const DEFAULT_GRAPHQL = {
+    queryIds: {
+      UserByScreenName: 'IGgvgiOx4QZndDHuD3x9TQ',
+      UserTweets: '36rb3Xj3iJ64Q-9wKDjCcQ',
+    },
+    features: {
+      UserByScreenName: {},
+      UserTweets: {},
+    },
+    fieldToggles: {
+      UserByScreenName: { withPayments: false, withAuxiliaryUserLabels: true },
+      UserTweets: { withArticlePlainText: false },
+    },
   };
 
-  const FEATURES = {
-    rweb_video_timestamps_enabled: true,
-    responsive_web_graphql_exclude_directive_enabled: true,
-    verified_phone_label_enabled: false,
-    creator_subscriptions_tweet_preview_api_enabled: true,
-    responsive_web_graphql_timeline_navigation_enabled: true,
-    responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-    c9s_tweet_anatomy_moderator_badge_enabled: true,
-    tweetypie_unmention_optimization_enabled: true,
-    responsive_web_edit_tweet_api_enabled: true,
-    graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-    view_counts_everywhere_api_enabled: true,
-    longform_notetweets_consumption_enabled: true,
-    responsive_web_twitter_article_tweet_consumption_enabled: true,
-    tweet_awards_web_tipping_enabled: false,
-    longform_notetweets_rich_text_read_enabled: true,
-    longform_notetweets_inline_media_enabled: true,
-    responsive_web_enhance_cards_enabled: false,
-    freedom_of_speech_not_reach_fetch_enabled: true,
-    standardized_nudges_misinfo: true,
-    responsive_web_media_download_video_enabled: true,
-    articles_preview_enabled: true,
-    rweb_lists_timeline_redesign_enabled: true,
-    creator_subscriptions_quote_tweet_preview_enabled: false,
-  };
+  let activeGraphql = DEFAULT_GRAPHQL;
 
   function normalizeAccounts(input) {
     const lines = Array.isArray(input) ? input : [];
@@ -70,11 +56,20 @@
     return Object.fromEntries(Object.entries(features).filter(([, value]) => value !== false));
   }
 
-  function buildGraphqlUrl(queryId, operationName, variables) {
+  function buildGraphqlUrl(operationName, variables) {
+    const queryId = activeGraphql.queryIds[operationName] ?? DEFAULT_GRAPHQL.queryIds[operationName];
+    const features = activeGraphql.features[operationName] ?? {};
+    const fieldToggles = activeGraphql.fieldToggles[operationName] ?? {};
+
     const params = new URLSearchParams({
       variables: JSON.stringify(variables),
-      features: JSON.stringify(compactFeatures(FEATURES)),
+      features: JSON.stringify(compactFeatures(features)),
     });
+
+    if (Object.keys(fieldToggles).length > 0) {
+      params.set('fieldToggles', JSON.stringify(fieldToggles));
+    }
+
     return `https://x.com/i/api/graphql/${queryId}/${operationName}?${params.toString()}`;
   }
 
@@ -96,19 +91,8 @@
     };
   }
 
-  let activeQueryIds = { ...FALLBACK_QUERY_IDS };
-
-  function resolveQueryId(operationName) {
-    const queryId = activeQueryIds[operationName] ?? FALLBACK_QUERY_IDS[operationName];
-    if (!queryId) {
-      throw new Error(`No query ID available for ${operationName}`);
-    }
-    return queryId;
-  }
-
   async function graphqlGet(operationName, variables) {
-    const queryId = resolveQueryId(operationName);
-    const response = await fetch(buildGraphqlUrl(queryId, operationName, variables), {
+    const response = await fetch(buildGraphqlUrl(operationName, variables), {
       method: 'GET',
       credentials: 'include',
       headers: getAuthHeaders(),
@@ -134,25 +118,35 @@
     return result;
   }
 
+  function getTweetText(tweet) {
+    const note = tweet?.note_tweet?.note_tweet_results?.result?.text;
+    if (note) return note;
+    return tweet?.legacy?.full_text ?? tweet?.legacy?.text ?? '';
+  }
+
   function extractTweetFromResult(result, expectedUsername) {
     const tweet = unwrapTweet(result);
-    if (!tweet?.legacy) return null;
+    if (!tweet) return null;
 
+    const legacy = tweet.legacy ?? {};
     const user = tweet.core?.user_results?.result;
     const username = user?.legacy?.screen_name ?? user?.core?.screen_name;
-    if (!username || !tweet.legacy.id_str) return null;
+    const id = legacy.id_str ?? tweet.rest_id;
+    const text = getTweetText(tweet);
+    const createdAt = legacy.created_at ?? tweet.created_at;
 
-    const legacy = tweet.legacy;
-    const isRetweet = Boolean(legacy.retweeted_status_result?.result || legacy.full_text?.startsWith('RT @'));
+    if (!username || !id || !createdAt) return null;
+
+    const isRetweet = Boolean(legacy.retweeted_status_result?.result || text.startsWith('RT @'));
     const isReply = Boolean(legacy.in_reply_to_status_id_str);
 
     return {
-      id: legacy.id_str,
-      text: legacy.full_text ?? '',
-      createdAt: legacy.created_at,
+      id: String(id),
+      text,
+      createdAt,
       username,
       displayName: user?.legacy?.name ?? user?.core?.name ?? username,
-      url: `https://x.com/${username}/status/${legacy.id_str}`,
+      url: `https://x.com/${username}/status/${id}`,
       metrics: {
         likes: legacy.favorite_count ?? 0,
         retweets: legacy.retweet_count ?? 0,
@@ -165,50 +159,59 @@
     };
   }
 
-  function collectInstructions(payload) {
+  function collectEntries(payload) {
     const user = payload?.data?.user?.result;
-    return (
+    const instructions =
       user?.timeline_v2?.timeline?.instructions ??
       user?.timeline?.timeline?.instructions ??
-      []
-    );
+      [];
+
+    const entries = [];
+
+    for (const instruction of instructions) {
+      if (instruction.type === 'TimelineAddEntries' && Array.isArray(instruction.entries)) {
+        entries.push(...instruction.entries);
+      }
+      if (instruction.type === 'TimelineReplaceEntry' && instruction.entry) {
+        entries.push(instruction.entry);
+      }
+      if (instruction.type === 'TimelinePinEntry' && instruction.entry) {
+        entries.push(instruction.entry);
+      }
+    }
+
+    return entries;
   }
 
   function parseUserTweetsResponse(payload, expectedUsername) {
-    const instructions = collectInstructions(payload);
+    const entries = collectEntries(payload);
     const tweets = [];
     let bottomCursor = null;
 
-    for (const instruction of instructions) {
-      if (instruction.type !== 'TimelineAddEntries' || !Array.isArray(instruction.entries)) {
+    for (const entry of entries) {
+      const content = entry?.content;
+      if (!content) continue;
+
+      if (content.cursorType === 'Bottom' || content.__typename === 'TimelineTimelineCursor') {
+        if (content.cursorType === 'Bottom') {
+          bottomCursor = content.value ?? bottomCursor;
+        }
         continue;
       }
 
-      for (const entry of instruction.entries) {
-        const content = entry?.content;
-        if (!content) continue;
+      if (content.__typename === 'TimelineTimelineItem' && content.itemContent) {
+        const tweet = extractTweetFromResult(content.itemContent.tweet_results?.result, expectedUsername);
+        if (tweet) tweets.push(tweet);
+        continue;
+      }
 
-        if (content.cursorType === 'Bottom' || content.__typename === 'TimelineTimelineCursor') {
-          if (content.cursorType === 'Bottom') {
-            bottomCursor = content.value ?? bottomCursor;
-          }
-          continue;
-        }
-
-        if (content.__typename === 'TimelineTimelineItem' && content.itemContent) {
-          const tweet = extractTweetFromResult(content.itemContent.tweet_results?.result, expectedUsername);
+      if (content.__typename === 'TimelineTimelineModule' && Array.isArray(content.items)) {
+        for (const moduleItem of content.items) {
+          const tweet = extractTweetFromResult(
+            moduleItem.item?.itemContent?.tweet_results?.result,
+            expectedUsername,
+          );
           if (tweet) tweets.push(tweet);
-          continue;
-        }
-
-        if (content.__typename === 'TimelineTimelineModule' && Array.isArray(content.items)) {
-          for (const moduleItem of content.items) {
-            const tweet = extractTweetFromResult(
-              moduleItem.item?.itemContent?.tweet_results?.result,
-              expectedUsername,
-            );
-            if (tweet) tweets.push(tweet);
-          }
         }
       }
     }
@@ -262,7 +265,6 @@
   async function lookupUser(username) {
     const payload = await graphqlGet('UserByScreenName', {
       screen_name: username,
-      withSafetyModeUserFields: true,
     });
 
     const user = payload?.data?.user?.result;
@@ -299,7 +301,6 @@
         includePromotedContent: false,
         withQuickPromoteEligibilityTweetFields: true,
         withVoice: true,
-        withV2Timeline: true,
       };
 
       if (cursor) {
@@ -342,9 +343,31 @@
   }
 
   async function fetchWatchlistForDay(options) {
-    activeQueryIds = {
-      ...FALLBACK_QUERY_IDS,
-      ...(options.queryIds ?? {}),
+    activeGraphql = {
+      queryIds: {
+        ...DEFAULT_GRAPHQL.queryIds,
+        ...(options.graphql?.queryIds ?? {}),
+      },
+      features: {
+        UserByScreenName: {
+          ...DEFAULT_GRAPHQL.features.UserByScreenName,
+          ...(options.graphql?.features?.UserByScreenName ?? {}),
+        },
+        UserTweets: {
+          ...DEFAULT_GRAPHQL.features.UserTweets,
+          ...(options.graphql?.features?.UserTweets ?? {}),
+        },
+      },
+      fieldToggles: {
+        UserByScreenName: {
+          ...DEFAULT_GRAPHQL.fieldToggles.UserByScreenName,
+          ...(options.graphql?.fieldToggles?.UserByScreenName ?? {}),
+        },
+        UserTweets: {
+          ...DEFAULT_GRAPHQL.fieldToggles.UserTweets,
+          ...(options.graphql?.fieldToggles?.UserTweets ?? {}),
+        },
+      },
     };
 
     const accounts = normalizeAccounts(options.accounts);

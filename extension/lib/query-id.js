@@ -1,6 +1,6 @@
 import { FALLBACK_QUERY_IDS, OPENAPI_QUERY_URL } from './constants.js';
 
-let cachedQueryIds = { ...FALLBACK_QUERY_IDS };
+const cachedQueryIds = {};
 
 export async function resolveQueryId(operationName) {
   if (cachedQueryIds[operationName]) {
@@ -26,11 +26,8 @@ export async function resolveQueryId(operationName) {
     throw new Error(`No query ID available for ${operationName}`);
   }
 
+  cachedQueryIds[operationName] = fallback;
   return fallback;
-}
-
-export function setQueryId(operationName, queryId) {
-  cachedQueryIds[operationName] = queryId;
 }
 
 export async function getQueryIds(operationNames) {
