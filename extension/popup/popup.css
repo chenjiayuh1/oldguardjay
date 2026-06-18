@@ -100,9 +100,11 @@ header p {
   padding: 8px 0;
 }
 
-.reader-post p {
+.reader-post .post-text {
   margin: 0 0 6px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .reader-post a {

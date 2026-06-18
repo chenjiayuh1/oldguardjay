@@ -1,3 +1,5 @@
+import { escapeHtml, groupTweets } from '../lib/reader.js';
+
 async function sendMessage(message) {
   const response = await chrome.runtime.sendMessage(message);
   if (response === undefined) {
@@ -24,40 +26,6 @@ function downloadText(filename, text) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
-}
-
-function escapeHtml(text) {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
-function groupTweets(scan) {
-  const order = scan.watchedAccounts ?? [];
-  const grouped = new Map();
-
-  for (const username of order) {
-    grouped.set(username.toLowerCase(), { username, displayName: username, tweets: [] });
-  }
-
-  for (const tweet of scan.tweets ?? []) {
-    const key = (tweet.watchedUsername ?? tweet.username).toLowerCase();
-    const bucket = grouped.get(key) ?? {
-      username: tweet.username,
-      displayName: tweet.displayName ?? tweet.username,
-      tweets: [],
-    };
-    bucket.tweets.push(tweet);
-    grouped.set(key, bucket);
-  }
-
-  if (order.length > 0) {
-    return order.map((username) => grouped.get(username.toLowerCase())).filter(Boolean);
-  }
-
-  return [...grouped.values()];
 }
 
 function renderPosts(scan, openReader = false) {
@@ -90,9 +58,9 @@ function renderPosts(scan, openReader = false) {
 
           return `
             <article class="reader-post">
-              <p>${escapeHtml(tweet.text)}</p>
+              <p class="post-text">${escapeHtml(tweet.text)}</p>
               <div class="reader-meta">
-                <a href="${tweet.url}" target="_blank" rel="noopener noreferrer">Open on X</a>
+                <a class="open-on-x" href="${tweet.url}" target="_blank" rel="noopener noreferrer">Open on X</a>
                 · ${escapeHtml(tweet.createdAt)}
                 · ❤️ ${tweet.metrics.likes} · 🔁 ${tweet.metrics.retweets}
                 ${tags.length ? ` · ${tags.join(' · ')}` : ''}
@@ -119,53 +87,8 @@ function openPostsInNewTab(scan) {
     throw new Error('No saved posts to read yet. Sync first.');
   }
 
-  const accounts = groupTweets(scan);
-  const body = accounts
-    .map((account) => {
-      const posts = account.tweets
-        .map(
-          (tweet) => `
-            <article style="margin:12px 0;padding-top:12px;border-top:1px solid #eee">
-              <p style="white-space:pre-wrap;margin:0 0 8px">${escapeHtml(tweet.text)}</p>
-              <p style="margin:0;font-size:13px;color:#666">
-                <a href="${tweet.url}">Open on X</a> · ${escapeHtml(tweet.createdAt)}
-              </p>
-            </article>
-          `,
-        )
-        .join('');
-
-      return `
-        <section style="margin-bottom:24px">
-          <h2 style="margin:0 0 8px;color:#001a57">@${escapeHtml(account.username)}</h2>
-          ${posts || '<p style="color:#666;font-style:italic">No posts today</p>'}
-        </section>
-      `;
-    })
-    .join('');
-
-  const html = `<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="utf-8" />
-  <title>X Watchlist — ${escapeHtml(scan.date)}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 760px; margin: 40px auto; padding: 0 24px; line-height: 1.6; color: #18181b; }
-    h1 { color: #001a57; }
-    a { color: #2563eb; }
-  </style>
-</head>
-<body>
-  <h1>X Watchlist — ${escapeHtml(scan.date)}</h1>
-  <p>${scan.tweets.length} posts · scanned ${escapeHtml(scan.scannedAt)}</p>
-  ${body}
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
+  const url = chrome.runtime.getURL(`reader/reader.html?date=${encodeURIComponent(scan.date)}`);
   chrome.tabs.create({ url });
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function accountsToText(accounts) {

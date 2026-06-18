@@ -82,7 +82,7 @@ export const FALLBACK_GRAPHQL = {
       withAuxiliaryUserLabels: true,
     },
     UserTweets: {
-      withArticlePlainText: false,
+      withArticlePlainText: true,
     },
   },
 };

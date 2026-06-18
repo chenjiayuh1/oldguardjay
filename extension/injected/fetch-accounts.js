@@ -18,7 +18,7 @@
     },
     fieldToggles: {
       UserByScreenName: { withPayments: false, withAuxiliaryUserLabels: true },
-      UserTweets: { withArticlePlainText: false },
+      UserTweets: { withArticlePlainText: true },
     },
   };
 
@@ -133,10 +133,58 @@
     return result;
   }
 
+  function findNoteTweetText(node, depth = 0) {
+    if (!node || depth > 8 || typeof node !== 'object') {
+      return null;
+    }
+
+    if (node.__typename === 'NoteTweet' && typeof node.text === 'string' && node.text) {
+      return node.text;
+    }
+
+    const direct =
+      node.note_tweet_results?.result?.text ??
+      node.note_tweet?.note_tweet_results?.result?.text;
+    if (direct) {
+      return direct;
+    }
+
+    for (const value of Object.values(node)) {
+      if (!value || typeof value !== 'object') {
+        continue;
+      }
+
+      const found = findNoteTweetText(value, depth + 1);
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+
   function getTweetText(tweet) {
-    const note = tweet?.note_tweet?.note_tweet_results?.result?.text;
-    if (note) return note;
-    return tweet?.legacy?.full_text ?? tweet?.legacy?.text ?? '';
+    const note = findNoteTweetText(tweet);
+    if (note) {
+      return note;
+    }
+
+    const article =
+      tweet?.article?.article_results?.result?.plain_text ??
+      tweet?.legacy?.extended_tweet?.full_text;
+    if (article) {
+      return article;
+    }
+
+    const retweeted = tweet?.legacy?.retweeted_status_result?.result;
+    if (retweeted) {
+      const inner = getTweetText(unwrapTweet(retweeted));
+      if (inner) {
+        return inner;
+      }
+    }
+
+    return tweet?.legacy?.full_text ?? tweet?.legacy?.text ?? tweet?.text ?? '';
   }
 
   function extractTweetFromResult(result, expectedUsername) {
