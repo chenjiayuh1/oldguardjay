@@ -1,15 +1,21 @@
 const pendingRequests = new Map();
 
 function injectFetcher() {
-  if (document.getElementById('x-account-scanner-fetcher')) {
-    return;
+  if (window.__xAccountScannerInjected) {
+    return Promise.resolve();
   }
 
-  const script = document.createElement('script');
-  script.id = 'x-account-scanner-fetcher';
-  script.src = chrome.runtime.getURL('injected/fetch-accounts.js');
-  script.onload = () => script.remove();
-  (document.head || document.documentElement).appendChild(script);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.id = 'x-account-scanner-fetcher';
+    script.src = chrome.runtime.getURL('injected/fetch-accounts.js');
+    script.onload = () => {
+      script.remove();
+      resolve();
+    };
+    script.onerror = () => reject(new Error('Failed to load the X page fetcher.'));
+    (document.head || document.documentElement).appendChild(script);
+  });
 }
 
 function waitForResult(requestId, timeoutMs = 300000) {
@@ -23,47 +29,62 @@ function waitForResult(requestId, timeoutMs = 300000) {
   });
 }
 
-window.addEventListener('x-account-scanner-result', (event) => {
-  const requestId = event.detail?.requestId;
-  const pending = pendingRequests.get(requestId);
-  if (!pending) {
-    return;
-  }
+if (!globalThis.__xAccountScannerResultListenerAdded) {
+  globalThis.__xAccountScannerResultListenerAdded = true;
 
-  clearTimeout(pending.timeout);
-  pendingRequests.delete(requestId);
+  window.addEventListener('x-account-scanner-result', (event) => {
+    const requestId = event.detail?.requestId;
+    const pending = pendingRequests.get(requestId);
+    if (!pending) {
+      return;
+    }
 
-  if (event.detail?.ok) {
-    pending.resolve(event.detail.result);
-    return;
-  }
+    clearTimeout(pending.timeout);
+    pendingRequests.delete(requestId);
 
-  pending.reject(new Error(event.detail?.error ?? 'Unknown fetch error'));
-});
+    if (event.detail?.ok) {
+      pending.resolve(event.detail.result);
+      return;
+    }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'FETCH_ACCOUNTS_FOR_DAY') {
-    return false;
-  }
+    pending.reject(new Error(event.detail?.error ?? 'Unknown fetch error'));
+  });
+}
 
-  injectFetcher();
+if (!globalThis.__xAccountScannerMessageListenerAdded) {
+  globalThis.__xAccountScannerMessageListenerAdded = true;
 
-  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === 'PING') {
+      sendResponse({ ok: true });
+      return true;
+    }
 
-  waitForResult(requestId)
-    .then((result) => sendResponse({ ok: true, result }))
-    .catch((error) => sendResponse({ ok: false, error: error.message }));
+    if (message?.type !== 'FETCH_ACCOUNTS_FOR_DAY') {
+      return false;
+    }
 
-  window.dispatchEvent(
-    new CustomEvent('x-account-scanner-fetch', {
-      detail: {
-        requestId,
-        options: message.options,
-      },
-    }),
-  );
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  return true;
-});
+    injectFetcher()
+      .then(() => {
+        waitForResult(requestId)
+          .then((result) => sendResponse({ ok: true, result }))
+          .catch((error) => sendResponse({ ok: false, error: error.message }));
 
-injectFetcher();
+        window.dispatchEvent(
+          new CustomEvent('x-account-scanner-fetch', {
+            detail: {
+              requestId,
+              options: message.options,
+            },
+          }),
+        );
+      })
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+
+    return true;
+  });
+}
+
+injectFetcher().catch(() => {});

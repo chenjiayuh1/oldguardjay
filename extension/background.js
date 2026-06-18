@@ -51,23 +51,66 @@ function findXTab(tabs) {
   return tabs.find((tab) => tab.url && /https:\/\/(x|twitter)\.com/.test(tab.url));
 }
 
-async function sendTabMessage(tabId, message, retries = 8) {
-  let lastError = null;
+async function pingContentScript(tabId) {
+  return chrome.tabs.sendMessage(tabId, { type: 'PING' });
+}
 
-  for (let attempt = 0; attempt < retries; attempt += 1) {
+async function ensureContentScriptReady(tabId) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
-      return await chrome.tabs.sendMessage(tabId, message);
-    } catch (error) {
-      lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await pingContentScript(tabId);
+      if (response?.ok) {
+        return;
+      }
+    } catch {
+      // Content script not ready yet.
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  await chrome.tabs.reload(tabId);
+  await waitForTabReady(tabId);
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      const response = await pingContentScript(tabId);
+      if (response?.ok) {
+        return;
+      }
+    } catch {
+      // Still not ready after reload.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ['content.js'],
+  });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  try {
+    const response = await pingContentScript(tabId);
+    if (response?.ok) {
+      return;
+    }
+  } catch (error) {
+    throw new Error(
+      'Extension could not attach to x.com. Open x.com/home, refresh the page, then sync again.',
+    );
   }
 
   throw new Error(
-    lastError instanceof Error
-      ? `Could not reach the X page script: ${lastError.message}`
-      : 'Could not reach the X page script.',
+    'Extension could not attach to x.com. Open x.com/home, refresh the page, then sync again.',
   );
+}
+
+async function sendTabMessage(tabId, message) {
+  const response = await chrome.tabs.sendMessage(tabId, message);
+  return response;
 }
 
 async function ensureXTab() {
@@ -119,15 +162,10 @@ async function fetchWatchlistForDate(date, settings, accounts) {
 
   await setScanProgress(`Opening x.com for ${accounts.length} accounts...`);
 
-  const current = await chrome.tabs.get(tab.id);
-  if (!/https:\/\/(x|twitter)\.com\/home/.test(current.url || '')) {
-    await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
-  } else if (current.status !== 'complete') {
-    await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
-  }
-
+  await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
   await waitForTabReady(tab.id);
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await setScanProgress('Attaching extension to x.com...');
+  await ensureContentScriptReady(tab.id);
   await setScanProgress(`Fetching posts for ${date}...`);
 
   const response = await sendTabMessage(tab.id, {
