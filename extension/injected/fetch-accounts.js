@@ -47,10 +47,7 @@
     return accounts;
   }
 
-  function getCookie(name) {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : null;
-  }
+  let sessionAuth = null;
 
   function compactFeatures(features) {
     return Object.fromEntries(Object.entries(features).filter(([, value]) => value !== false));
@@ -83,11 +80,13 @@
   }
 
   function getAuthHeaders(operationName, context = {}) {
-    const csrfToken = getCookie('ct0');
-    const authToken = getCookie('auth_token');
+    const csrfToken = sessionAuth?.ct0;
+    const authToken = sessionAuth?.authToken;
 
     if (!csrfToken || !authToken) {
-      throw new Error('Not logged in to X. Open x.com and sign in first.');
+      throw new Error(
+        'X session was not passed to the page fetcher. Reload the extension and try again.',
+      );
     }
 
     const referer =
@@ -359,6 +358,8 @@
   }
 
   async function fetchWatchlistForDay(options) {
+    sessionAuth = options.auth ?? null;
+
     activeGraphql = {
       queryIds: {
         ...DEFAULT_GRAPHQL.queryIds,
