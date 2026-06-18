@@ -96,29 +96,18 @@
     };
   }
 
-  async function resolveQueryId(operationName) {
-    try {
-      const response = await fetch(
-        'https://raw.githubusercontent.com/fa0311/twitter-openapi/refs/heads/main/src/config/placeholder.json',
-      );
-      if (response.ok) {
-        const payload = await response.json();
-        const queryId = payload?.[operationName]?.queryId;
-        if (queryId) return queryId;
-      }
-    } catch {
-      // Fall back to bundled query IDs.
-    }
+  let activeQueryIds = { ...FALLBACK_QUERY_IDS };
 
-    const fallback = FALLBACK_QUERY_IDS[operationName];
-    if (!fallback) {
+  function resolveQueryId(operationName) {
+    const queryId = activeQueryIds[operationName] ?? FALLBACK_QUERY_IDS[operationName];
+    if (!queryId) {
       throw new Error(`No query ID available for ${operationName}`);
     }
-    return fallback;
+    return queryId;
   }
 
   async function graphqlGet(operationName, variables) {
-    const queryId = await resolveQueryId(operationName);
+    const queryId = resolveQueryId(operationName);
     const response = await fetch(buildGraphqlUrl(queryId, operationName, variables), {
       method: 'GET',
       credentials: 'include',
@@ -353,6 +342,11 @@
   }
 
   async function fetchWatchlistForDay(options) {
+    activeQueryIds = {
+      ...FALLBACK_QUERY_IDS,
+      ...(options.queryIds ?? {}),
+    };
+
     const accounts = normalizeAccounts(options.accounts);
     if (accounts.length === 0) {
       throw new Error('Add at least one account to your watchlist.');

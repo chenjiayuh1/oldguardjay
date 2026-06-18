@@ -32,3 +32,13 @@ export async function resolveQueryId(operationName) {
 export function setQueryId(operationName, queryId) {
   cachedQueryIds[operationName] = queryId;
 }
+
+export async function getQueryIds(operationNames) {
+  const queryIds = {};
+
+  for (const operationName of operationNames) {
+    queryIds[operationName] = await resolveQueryId(operationName);
+  }
+
+  return queryIds;
+}
