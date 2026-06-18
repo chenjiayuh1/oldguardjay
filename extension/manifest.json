@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "X Watchlist Daily Scanner",
+  "description": "Collect daily posts from a custom list of X accounts using your logged-in session.",
+  "version": "1.1.0",
+  "permissions": ["storage", "alarms", "tabs", "notifications"],
+  "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "X Watchlist Scanner"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected/fetch-accounts.js", "config/accounts.json"],
+      "matches": ["https://x.com/*", "https://twitter.com/*"]
+    }
+  ]
+}

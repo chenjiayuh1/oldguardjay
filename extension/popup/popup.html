@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>X Watchlist Scanner</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>X Watchlist Scanner</h1>
+        <p>Collect today's posts from your custom account list.</p>
+      </header>
+
+      <section class="status" id="status">
+        <div class="metric">
+          <span class="label">Today</span>
+          <strong id="today-date">—</strong>
+        </div>
+        <div class="metric">
+          <span class="label">Saved posts</span>
+          <strong id="tweet-count">—</strong>
+        </div>
+        <div class="metric">
+          <span class="label">Watchlist</span>
+          <strong id="account-count">—</strong>
+        </div>
+      </section>
+
+      <p class="hint" id="status-message">Sign in to x.com, then sync.</p>
+
+      <div class="actions">
+        <button id="sync-btn" class="primary">Sync today</button>
+        <button id="export-btn" class="secondary">Export markdown</button>
+      </div>
+
+      <details class="settings">
+        <summary>Watchlist &amp; settings</summary>
+        <label>
+          Accounts
+          <textarea id="accounts" rows="8" placeholder="One account per line, e.g. https://x.com/pmarca"></textarea>
+        </label>
+        <label>
+          Timezone
+          <select id="timezone">
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="Asia/Taipei">Asia/Taipei</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </label>
+        <label>
+          Daily run time
+          <div class="time-row">
+            <input id="schedule-hour" type="number" min="0" max="23" />
+            <span>:</span>
+            <input id="schedule-minute" type="number" min="0" max="59" />
+          </div>
+        </label>
+        <label class="checkbox">
+          <input id="include-retweets" type="checkbox" />
+          Include retweets
+        </label>
+        <label class="checkbox">
+          <input id="include-replies" type="checkbox" />
+          Include replies
+        </label>
+        <button id="save-settings-btn" class="secondary">Save watchlist &amp; settings</button>
+      </details>
+
+      <footer>
+        <p>Load unpacked from <code>extension/</code>. Stay logged in to X in this browser.</p>
+      </footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

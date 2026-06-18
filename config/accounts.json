@@ -1,0 +1,83 @@
+{
+  "accounts": [
+    {
+      "username": "GarryTan",
+      "group": "tech"
+    },
+    {
+      "username": "TruthGundlach",
+      "group": "markets"
+    },
+    {
+      "username": "micsolana",
+      "group": "tech"
+    },
+    {
+      "username": "pmarca",
+      "group": "tech"
+    },
+    {
+      "username": "paulg",
+      "group": "tech"
+    },
+    {
+      "username": "austen",
+      "group": "tech"
+    },
+    {
+      "username": "elonmusk",
+      "group": "tech"
+    },
+    {
+      "username": "karpathy",
+      "group": "tech"
+    },
+    {
+      "username": "yunta_tsai",
+      "group": "commentary"
+    },
+    {
+      "username": "blader",
+      "group": "tech"
+    },
+    {
+      "username": "friedberg",
+      "group": "tech"
+    },
+    {
+      "username": "kevinakwok",
+      "group": "tech"
+    },
+    {
+      "username": "patrickc",
+      "group": "tech"
+    },
+    {
+      "username": "charlesmurray",
+      "group": "commentary"
+    },
+    {
+      "username": "SteveMillerOC",
+      "group": "commentary"
+    },
+    {
+      "username": "MsMelChen",
+      "group": "commentary"
+    },
+    {
+      "username": "jhong",
+      "group": "tech"
+    }
+  ],
+  "groups": {
+    "tech": "科技與商業",
+    "commentary": "評論與觀點",
+    "politics": "政治",
+    "markets": "市場與經濟"
+  },
+  "summary": {
+    "language": "zh-TW",
+    "timezone": "America/Los_Angeles",
+    "maxTweetsPerAccount": 50
+  }
+}

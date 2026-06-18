@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "scan": "tsx scripts/daily-scan.ts",
+    "scan:ai": "tsx scripts/daily-scan.ts --mode=ai",
+    "scan:fetch": "tsx scripts/daily-scan.ts --fetch-only",
+    "scan:summarize": "tsx scripts/daily-scan.ts --summarize-only"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -23,6 +27,8 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "dotenv": "^17.2.1",
+    "tsx": "^4.20.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
