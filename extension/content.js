@@ -1,25 +1,5 @@
 const pendingRequests = new Map();
 
-async function getXSession() {
-  const urls = ['https://x.com/', 'https://twitter.com/'];
-
-  for (const url of urls) {
-    const ct0 = await chrome.cookies.get({ url, name: 'ct0' });
-    const authToken = await chrome.cookies.get({ url, name: 'auth_token' });
-
-    if (ct0?.value && authToken?.value) {
-      return {
-        ct0: ct0.value,
-        authToken: authToken.value,
-      };
-    }
-  }
-
-  throw new Error(
-    'X login cookies not found in this Chrome profile. Open x.com, sign in, refresh the page, then sync again.',
-  );
-}
-
 function injectFetcher() {
   if (window.__xAccountScannerInjected) {
     return Promise.resolve();
@@ -86,8 +66,12 @@ if (!globalThis.__xAccountScannerMessageListenerAdded) {
 
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    Promise.all([injectFetcher(), getXSession()])
-      .then(([, auth]) => {
+    injectFetcher()
+      .then(() => {
+        if (!message.options?.auth?.ct0 || !message.options?.auth?.authToken) {
+          throw new Error('Missing X session from background worker. Reload the extension and try again.');
+        }
+
         waitForResult(requestId)
           .then((result) => sendResponse({ ok: true, result }))
           .catch((error) => sendResponse({ ok: false, error: error.message }));
@@ -96,10 +80,7 @@ if (!globalThis.__xAccountScannerMessageListenerAdded) {
           new CustomEvent('x-account-scanner-fetch', {
             detail: {
               requestId,
-              options: {
-                ...message.options,
-                auth,
-              },
+              options: message.options,
             },
           }),
         );

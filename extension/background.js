@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from './lib/constants.js';
 import { formatDateInTimezone } from './lib/date-utils.js';
 import { toMarkdown } from './lib/export.js';
 import { clearGraphqlConfigCache, loadGraphqlConfig } from './lib/graphql-config.js';
+import { getXSession } from './lib/session.js';
 
 const ALARM_NAME = 'daily-watchlist-scan';
 
@@ -170,13 +171,14 @@ async function fetchWatchlistForDate(date, settings, accounts) {
   await setScanProgress(`Fetching posts for ${date}...`);
 
   clearGraphqlConfigCache();
-  const graphql = await loadGraphqlConfig();
+  const [graphql, auth] = await Promise.all([loadGraphqlConfig(), getXSession()]);
 
   const response = await sendTabMessage(tab.id, {
     type: 'FETCH_ACCOUNTS_FOR_DAY',
     options: {
       date,
       accounts,
+      auth,
       graphql,
       timeZone: settings.timezone,
       maxPagesPerAccount: settings.maxPagesPerAccount,
