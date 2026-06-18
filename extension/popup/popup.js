@@ -1,5 +1,9 @@
-function sendMessage(message) {
-  return chrome.runtime.sendMessage(message);
+async function sendMessage(message) {
+  const response = await chrome.runtime.sendMessage(message);
+  if (response === undefined) {
+    throw new Error('No response from extension background. Reload the extension and try again.');
+  }
+  return response;
 }
 
 function setBusy(isBusy) {
@@ -54,9 +58,19 @@ function renderStatus(payload) {
     payload.accounts?.length ?? payload.lastScan?.watchedAccountCount ?? 0,
   );
 
-  if (payload.lastScan?.scannedAt) {
-    setStatusMessage(`Last sync: ${new Date(payload.lastScan.scannedAt).toLocaleString()}`);
+  if (payload.scanProgress?.message) {
+    setStatusMessage(payload.scanProgress.message);
+    return;
   }
+
+  if (payload.lastScan?.scannedAt) {
+    setStatusMessage(
+      `Last sync: ${new Date(payload.lastScan.scannedAt).toLocaleString()}. Use Export markdown to save a file.`,
+    );
+    return;
+  }
+
+  setStatusMessage('Sign in to x.com, then sync. Posts stay in the extension until you export.');
 }
 
 async function refreshStatus() {

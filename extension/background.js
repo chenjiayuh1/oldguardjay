@@ -83,6 +83,33 @@ async function ensureXTab() {
   });
 }
 
+async function waitForTabReady(tabId, maxWaitMs = 30000) {
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status === 'complete' && /https:\/\/(x|twitter)\.com/.test(tab.url || '')) {
+      return tab;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error('Timed out waiting for x.com. Open x.com in a tab, log in, then sync again.');
+}
+
+async function setScanProgress(message) {
+  await chrome.storage.local.set({
+    scanProgress: {
+      message,
+      updatedAt: new Date().toISOString(),
+    },
+  });
+}
+
+async function clearScanProgress() {
+  await chrome.storage.local.remove('scanProgress');
+}
+
 async function fetchWatchlistForDate(date, settings, accounts) {
   const tab = await ensureXTab();
 
@@ -90,19 +117,18 @@ async function fetchWatchlistForDate(date, settings, accounts) {
     throw new Error('Could not open an X tab for scanning.');
   }
 
-  await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
+  await setScanProgress(`Opening x.com for ${accounts.length} accounts...`);
 
-  await new Promise((resolve) => {
-    const listener = (tabId, info) => {
-      if (tabId === tab.id && info.status === 'complete') {
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    };
-    chrome.tabs.onUpdated.addListener(listener);
-  });
+  const current = await chrome.tabs.get(tab.id);
+  if (!/https:\/\/(x|twitter)\.com\/home/.test(current.url || '')) {
+    await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
+  } else if (current.status !== 'complete') {
+    await chrome.tabs.update(tab.id, { url: 'https://x.com/home' });
+  }
 
+  await waitForTabReady(tab.id);
   await new Promise((resolve) => setTimeout(resolve, 1500));
+  await setScanProgress(`Fetching posts for ${date}...`);
 
   const response = await sendTabMessage(tab.id, {
     type: 'FETCH_ACCOUNTS_FOR_DAY',
@@ -126,9 +152,15 @@ async function fetchWatchlistForDate(date, settings, accounts) {
 async function runScan(date) {
   const settings = await getSettings();
   const accounts = await getAccounts();
-  const result = await fetchWatchlistForDate(date, settings, accounts);
-  await saveScan(result);
-  return result;
+
+  try {
+    await setScanProgress(`Starting sync for ${accounts.length} accounts...`);
+    const result = await fetchWatchlistForDate(date, settings, accounts);
+    await saveScan(result);
+    return result;
+  } finally {
+    await clearScanProgress();
+  }
 }
 
 function scheduleDailyAlarm(settings) {
@@ -190,7 +222,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const settings = await getSettings();
         const accounts = await getAccounts();
         const today = formatDateInTimezone(new Date(), settings.timezone);
-        const stored = await chrome.storage.local.get(['lastScan']);
+        const stored = await chrome.storage.local.get(['lastScan', 'scanProgress']);
         const todayScan = await getScan(message.date ?? today);
         sendResponse({
           ok: true,
@@ -198,6 +230,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           accounts,
           lastScan: stored.lastScan ?? null,
           todayScan,
+          scanProgress: stored.scanProgress ?? null,
         });
         return;
       }

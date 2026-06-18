@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "X Watchlist Daily Scanner",
   "description": "Collect daily posts from a custom list of X accounts using your logged-in session.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "permissions": ["storage", "alarms", "tabs", "notifications"],
   "host_permissions": [
     "https://x.com/*",
