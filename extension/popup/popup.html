@@ -32,8 +32,14 @@
 
       <div class="actions">
         <button id="sync-btn" class="primary">Sync today</button>
+        <button id="read-btn" class="secondary">Read today</button>
         <button id="export-btn" class="secondary">Export markdown</button>
       </div>
+
+      <details class="reader" id="reader" hidden>
+        <summary id="reader-summary">Today's posts</summary>
+        <div id="reader-content" class="reader-content"></div>
+      </details>
 
       <details class="settings">
         <summary>Watchlist &amp; settings</summary>
@@ -70,7 +76,7 @@
       </details>
 
       <footer>
-        <p>Sync saves posts in Chrome storage. Click <strong>Export markdown</strong> to download a <code>.md</code> file. Keep this popup open while syncing (~1 min).</p>
+        <p>Click <strong>Read today</strong> to view posts here, or <strong>Export markdown</strong> to save a file.</p>
       </footer>
     </main>
     <script type="module" src="popup.js"></script>

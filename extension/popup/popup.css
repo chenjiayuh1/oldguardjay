@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  width: 360px;
+  width: 420px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #18181b;
   background: #fafafa;
@@ -61,6 +61,68 @@ header p {
 .actions {
   display: grid;
   gap: 8px;
+}
+
+.reader {
+  margin-top: 14px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.reader summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.reader-content {
+  margin-top: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.reader-account {
+  margin-bottom: 14px;
+}
+
+.reader-account h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #001a57;
+}
+
+.reader-post {
+  border-top: 1px solid #f4f4f5;
+  padding: 8px 0;
+}
+
+.reader-post p {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+}
+
+.reader-post a {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 11px;
+}
+
+.reader-post a:hover {
+  text-decoration: underline;
+}
+
+.reader-meta {
+  color: #71717a;
+  font-size: 11px;
+}
+
+.reader-empty {
+  color: #71717a;
+  font-style: italic;
 }
 
 button {
