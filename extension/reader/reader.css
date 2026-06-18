@@ -35,6 +35,16 @@ a {
   color: #2563eb;
 }
 
+.reader-day {
+  margin-bottom: 32px;
+}
+
+.reader-day-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #3f3f46;
+}
+
 .reader-account {
   margin-bottom: 28px;
 }

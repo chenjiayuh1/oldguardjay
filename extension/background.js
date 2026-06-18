@@ -1,6 +1,6 @@
 import { loadDefaultAccounts, normalizeAccounts } from './lib/accounts.js';
 import { DEFAULT_SETTINGS } from './lib/constants.js';
-import { formatDateInTimezone } from './lib/date-utils.js';
+import { formatDateInTimezone, offsetDateString } from './lib/date-utils.js';
 import { toMarkdown } from './lib/export.js';
 import { clearGraphqlConfigCache, loadGraphqlConfig } from './lib/graphql-config.js';
 import { getXSession } from './lib/session.js';
@@ -168,7 +168,10 @@ async function fetchWatchlistForDate(date, settings, accounts) {
   await waitForTabReady(tab.id);
   await setScanProgress('Attaching extension to x.com...');
   await ensureContentScriptReady(tab.id);
-  await setScanProgress(`Fetching posts for ${date}...`);
+  const yesterday = offsetDateString(date, -1, settings.timezone);
+  const scanDates = [yesterday, date];
+
+  await setScanProgress(`Fetching posts for ${yesterday} and ${date}...`);
 
   clearGraphqlConfigCache();
   const [graphql, auth] = await Promise.all([loadGraphqlConfig(), getXSession()]);
@@ -177,6 +180,7 @@ async function fetchWatchlistForDate(date, settings, accounts) {
     type: 'FETCH_ACCOUNTS_FOR_DAY',
     options: {
       date,
+      dates: scanDates,
       accounts,
       auth,
       graphql,

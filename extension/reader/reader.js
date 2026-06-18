@@ -1,4 +1,9 @@
-import { escapeHtml, renderReaderPosts } from '../lib/reader.js';
+import {
+  escapeHtml,
+  formatScanSubtitle,
+  formatScanTitle,
+  renderReaderPosts,
+} from '../lib/reader.js';
 
 function getDateFromQuery() {
   return new URLSearchParams(location.search).get('date');
@@ -11,10 +16,10 @@ async function loadScan(date) {
 }
 
 function renderScan(scan) {
-  document.title = `X Watchlist — ${scan.date}`;
+  document.title = formatScanTitle(scan);
   document.getElementById('app').innerHTML = `
-    <h1>X Watchlist — ${escapeHtml(scan.date)}</h1>
-    <p class="subtitle">${scan.tweets.length} posts · scanned ${escapeHtml(scan.scannedAt)}</p>
+    <h1>${escapeHtml(formatScanTitle(scan))}</h1>
+    <p class="subtitle">${escapeHtml(formatScanSubtitle(scan))}</p>
     ${renderReaderPosts(scan)}
   `;
 }

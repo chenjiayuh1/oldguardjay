@@ -64,3 +64,13 @@ export function isWithinDay(createdAt, dateString, timeZone) {
   const { start, end } = getDayBounds(dateString, timeZone);
   return created >= start && created < end;
 }
+
+export function offsetDateString(dateString, dayOffset, timeZone) {
+  const { start } = getDayBounds(dateString, timeZone);
+  const shifted = new Date(start.getTime() + dayOffset * 86_400_000);
+  return formatDateInTimezone(shifted, timeZone);
+}
+
+export function isWithinAnyDay(createdAt, dateStrings, timeZone) {
+  return dateStrings.some((dateString) => isWithinDay(createdAt, dateString, timeZone));
+}

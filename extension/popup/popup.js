@@ -1,4 +1,4 @@
-import { escapeHtml, groupTweets } from '../lib/reader.js';
+import { getScanDays, renderReaderPosts } from '../lib/reader.js';
 
 async function sendMessage(message) {
   const response = await chrome.runtime.sendMessage(message);
@@ -44,42 +44,13 @@ function renderPosts(scan, openReader = false) {
     reader.open = true;
   }
 
-  summary.textContent = `Today's posts (${scan.tweets.length})`;
+  const days = getScanDays(scan);
+  summary.textContent =
+    days.length > 1
+      ? `Yesterday + today (${scan.tweets.length})`
+      : `Today's posts (${scan.tweets.length})`;
 
-  const accounts = groupTweets(scan);
-  content.innerHTML = accounts
-    .map((account) => {
-      const posts = account.tweets
-        .map((tweet) => {
-          const tags = [
-            tweet.isRetweet ? '轉推' : null,
-            tweet.isReply ? '回覆' : null,
-          ].filter(Boolean);
-
-          return `
-            <article class="reader-post">
-              <p class="post-text">${escapeHtml(tweet.text)}</p>
-              <div class="reader-meta">
-                <a class="open-on-x" href="${tweet.url}" target="_blank" rel="noopener noreferrer">Open on X</a>
-                · ${escapeHtml(tweet.createdAt)}
-                · ❤️ ${tweet.metrics.likes} · 🔁 ${tweet.metrics.retweets}
-                ${tags.length ? ` · ${tags.join(' · ')}` : ''}
-              </div>
-            </article>
-          `;
-        })
-        .join('');
-
-      const body = posts || '<p class="reader-empty">No posts today</p>';
-
-      return `
-        <section class="reader-account">
-          <h3>@${escapeHtml(account.username)}</h3>
-          ${body}
-        </section>
-      `;
-    })
-    .join('');
+  content.innerHTML = renderReaderPosts(scan, { headingLevel: 3 });
 }
 
 function openPostsInNewTab(scan) {

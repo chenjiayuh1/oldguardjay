@@ -85,6 +85,17 @@ header p {
   line-height: 1.5;
 }
 
+.reader-day {
+  margin-bottom: 16px;
+}
+
+.reader-day-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3f3f46;
+}
+
 .reader-account {
   margin-bottom: 14px;
 }

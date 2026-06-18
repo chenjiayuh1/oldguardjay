@@ -325,6 +325,21 @@
     return created >= start && created < end;
   }
 
+  function formatDateInTimezone(date, timeZone) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    const day = parts.find((part) => part.type === 'day')?.value;
+
+    return `${year}-${month}-${day}`;
+  }
+
   async function lookupUser(username) {
     const payload = await graphqlGet('UserByScreenName', {
       screen_name: username,
@@ -342,8 +357,9 @@
     };
   }
 
-  async function fetchAccountTweetsForDay(user, options) {
+  async function fetchAccountTweetsForDays(user, options) {
     const {
+      dates,
       date,
       timeZone,
       maxPagesPerAccount = 8,
@@ -351,11 +367,17 @@
       includeReplies = false,
     } = options;
 
+    const scanDates = dates ?? (date ? [date] : []);
+    if (scanDates.length === 0) {
+      throw new Error('No scan dates provided.');
+    }
+
     const seen = new Set();
     const collected = [];
     let cursor = null;
-    let reachedOlderThanTargetDay = false;
-    const { start } = getDayBounds(date, timeZone);
+    let reachedOlderThanTargetRange = false;
+    const oldestDate = [...scanDates].sort()[0];
+    const { start: rangeStart } = getDayBounds(oldestDate, timeZone);
 
     for (let page = 0; page < maxPagesPerAccount; page += 1) {
       const variables = {
@@ -382,19 +404,20 @@
         seen.add(tweet.id);
 
         const created = new Date(tweet.createdAt);
-        if (created < start) {
-          reachedOlderThanTargetDay = true;
+        if (created < rangeStart) {
+          reachedOlderThanTargetRange = true;
           continue;
         }
 
-        if (!isWithinDay(tweet.createdAt, date, timeZone)) continue;
+        const dayDate = formatDateInTimezone(created, timeZone);
+        if (!scanDates.includes(dayDate)) continue;
         if (!includeRetweets && tweet.isRetweet) continue;
         if (!includeReplies && tweet.isReply) continue;
 
-        collected.push(tweet);
+        collected.push({ ...tweet, dayDate });
       }
 
-      if (reachedOlderThanTargetDay || !bottomCursor || bottomCursor === cursor) {
+      if (reachedOlderThanTargetRange || !bottomCursor || bottomCursor === cursor) {
         break;
       }
 
@@ -446,7 +469,7 @@
     for (const username of accounts) {
       try {
         const user = await lookupUser(username);
-        const tweets = await fetchAccountTweetsForDay(user, options);
+        const tweets = await fetchAccountTweetsForDays(user, options);
 
         accountResults.push({
           username: user.username,
@@ -468,8 +491,11 @@
 
     collected.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+    const scanDates = options.dates ?? (options.date ? [options.date] : []);
+
     return {
       date: options.date,
+      scanDates,
       scannedAt: new Date().toISOString(),
       watchedAccounts: accounts,
       tweets: collected,
