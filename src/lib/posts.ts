@@ -42,6 +42,13 @@ function safeFormatDate(dateStr: string): string {
 }
 
 
+// Order within a day: M-D-YYYY = 1, M-D-YYYY-2 = 2, ...
+function postOrder(slug: string): number {
+  const m = slug.match(/^\d{1,2}-\d{1,2}-\d{4}-(\d+)$/);
+  return m ? parseInt(m[1], 10) : 1;
+}
+
+
 export async function getAllPosts(): Promise<Post[]> {
   const files = fs.readdirSync(postsDirectory);
   
@@ -66,8 +73,11 @@ export async function getAllPosts(): Promise<Post[]> {
       // Safe sorting with fallback
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      return (isNaN(dateB.getTime()) ? 0 : dateB.getTime()) - 
+      const diff = (isNaN(dateB.getTime()) ? 0 : dateB.getTime()) - 
              (isNaN(dateA.getTime()) ? 0 : dateA.getTime());
+      if (diff !== 0) return diff;
+      // Same day: later posts (M-D-YYYY-2, -3, ...) go on top
+      return postOrder(b.slug) - postOrder(a.slug);
     });
 
 
